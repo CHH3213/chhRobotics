@@ -149,11 +149,11 @@ while len(U_pos) > 0:
     U_dist.pop(idx)
 
     # # 绘图1
-    # nodesub = map.ind2sub([rows,cols],node)
-    # if field[nodesub[0]][nodesub[1]] == 1:
-    #     nodexy = map.sub2xy([rows,cols],nodesub[0],nodesub[1])
-    #     searhx.append(nodexy[0])
-    #     searhy.append(nodexy[1])
+    nodesub = map.ind2sub([rows,cols],node)
+    if field[nodesub[0]][nodesub[1]] == 1:
+        nodexy = map.sub2xy([rows,cols],nodesub[0],nodesub[1])
+        searhx.append(nodexy[0])
+        searhy.append(nodexy[1])
 
 
     # 从获得的新节点Node出发（相当于Node = startpos），进行循环判断求最短路径
@@ -178,17 +178,17 @@ while len(U_pos) > 0:
 
 
     # # 绘图2
-    # plt.plot(startXY[0],startXY[1],'r+')
-    # plt.plot(goalXY[0],goalXY[1],'b+')
-    # plt.plot(obsX,obsY,'sk')
-    # plt.plot(searhx,searhy,'sr')
-    # ax.set_xlim([-1,cols])
-    # ax.set_ylim([-1,rows])
-    # ax.set_xticks(np.arange(cols))
-    # ax.set_yticks(np.arange(rows))
-    # plt.pause(0.05)
-    # plt.cla()
-    
+    plt.cla()
+    plt.plot(startXY[0],startXY[1],'r+')
+    plt.plot(goalXY[0],goalXY[1],'b+')
+    plt.plot(obsX,obsY,'sk')
+    plt.plot(searhx,searhy,'sr')
+    ax.set_xlim([-1,cols])
+    ax.set_ylim([-1,rows])
+    ax.set_xticks(np.arange(cols))
+    ax.set_yticks(np.arange(rows))
+    plt.pause(0.05)
+    # plt.show()
 
 
 
@@ -210,6 +210,7 @@ for i in range(0,len(optpathsub),1):
 field[startSub[0], startSub[1]] = 4
 field[goalSub[0], goalSub[1]] = 5
 
+plt.figure()
 plt.plot(startXY[0],startXY[1],'r+')
 plt.plot(goalXY[0],goalXY[1],'b+')
 plt.plot(obsX,obsY,'sk')
@@ -219,7 +220,7 @@ ax.set_xlim([-1,cols])
 ax.set_ylim([-1,rows])
 ax.set_xticks(np.arange(cols))
 ax.set_yticks(np.arange(rows))
-plt.pause(5)
-map.DrawHeatMap(field)
+# plt.pause(5)
+# map.DrawHeatMap(field)
 plt.show()
 
