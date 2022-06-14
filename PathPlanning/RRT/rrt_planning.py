@@ -81,13 +81,13 @@ class RRT:
         self.node_list = []
         self.robot_radius = robot_radius
 
-    def planning(self, animation=True,camara=None):
+    def planning(self, animation=True,camera=None):
         """
         rrt path planning
 
         animation: flag for animation on or off
 
-        camara: 是否保存动图
+        camera: 是否保存动图
         """
 
         # 将起点作为根节点x_{init}​，加入到随机树的节点集合中。
@@ -118,7 +118,7 @@ class RRT:
                     return self.generate_final_course(len(self.node_list) - 1)
 
             if animation and i % 5 ==0:
-                self.draw_graph(rnd_node, camara)
+                self.draw_graph(rnd_node, camera)
 
         return None  # cannot find path
 
@@ -319,7 +319,7 @@ def main(gx=6.0, gy=10.0):
         play_area=[-2, 12, 0, 14],
         robot_radius=0.8
     )
-    path = rrt.planning(animation=show_animation,camara=camera)
+    path = rrt.planning(animation=show_animation,camera=camera)
 
     if path is None:
         print("Cannot find path")

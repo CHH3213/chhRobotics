@@ -1,20 +1,12 @@
-"""
-
-Path planning Sample Code with RRT*
-
-author: Atsushi Sakai(@Atsushi_twi)
-
-"""
-
 import math
 import os
 import sys
 
 import matplotlib.pyplot as plt
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/../RRT/")
-
+from celluloid import Camera  # 保存动图时用，pip install celluloid
+sys.path.append("../RRT")
 try:
-    from RRT.rrt_planning import RRT
+    from rrt_planning import RRT
 except ImportError:
     raise
 
@@ -32,17 +24,16 @@ class RRTStar(RRT):
             self.cost = 0.0
 
     def __init__(self,
-                 start,
-                 goal,
-                 obstacle_list,
-                 rand_area,
-                 expand_dis=30.0,
-                 path_resolution=1.0,
-                 goal_sample_rate=20,
-                 max_iter=300,
-                 connect_circle_dist=50.0,
-                 search_until_max_iter=False,
-                 robot_radius=0.0):
+            start,
+            goal,
+            obstacle_list,
+            rand_area,
+            expand_dis=3.0,
+            goal_sample_rate=20,
+            max_iter=500,
+            connect_circle_dist=50.0,
+            search_until_max_iter=False,
+            robot_radius=0.0):
         """
         Setting Parameter
 
@@ -53,13 +44,13 @@ class RRTStar(RRT):
 
         """
         super().__init__(start, goal, obstacle_list, rand_area, expand_dis,
-                         path_resolution, goal_sample_rate, max_iter,
+                          goal_sample_rate, max_iter,
                          robot_radius=robot_radius)
         self.connect_circle_dist = connect_circle_dist
         self.goal_node = self.Node(goal[0], goal[1])
         self.search_until_max_iter = search_until_max_iter
 
-    def planning(self, animation=True):
+    def planning(self, animation=True, camera=None):
         """
         rrt star path planning
 
@@ -69,31 +60,29 @@ class RRTStar(RRT):
         self.node_list = [self.start]
         for i in range(self.max_iter):
             print("Iter:", i, ", number of nodes:", len(self.node_list))
-            rnd = self.get_random_node()
+            rnd = self.sample_free()
             nearest_ind = self.get_nearest_node_index(self.node_list, rnd)
             new_node = self.steer(self.node_list[nearest_ind], rnd,
                                   self.expand_dis)
             near_node = self.node_list[nearest_ind]
-            new_node.cost = near_node.cost + \
-                math.hypot(new_node.x-near_node.x,
-                           new_node.y-near_node.y)
+            # 计算代价,欧氏距离
+            new_node.cost = near_node.cost + math.hypot(new_node.x-near_node.x, new_node.y-near_node.y)
 
-            if self.check_collision(
-                    new_node, self.obstacle_list, self.robot_radius):
-                near_inds = self.find_near_nodes(new_node)
-                node_with_updated_parent = self.choose_parent(
-                    new_node, near_inds)
+            if self.obstacle_free(new_node, self.obstacle_list, self.robot_radius):
+                near_inds = self.find_near_nodes(new_node) # 找到x_new的邻近节点
+                node_with_updated_parent = self.choose_parent(new_node, near_inds) # 重新选择父节点
+                # 如果父节点更新了
                 if node_with_updated_parent:
+                    # 重布线
                     self.rewire(node_with_updated_parent, near_inds)
                     self.node_list.append(node_with_updated_parent)
                 else:
                     self.node_list.append(new_node)
 
-            if animation:
-                self.draw_graph(rnd)
+            if animation and i % 5 ==0:
+                self.draw_graph(rnd, camera)
 
-            if ((not self.search_until_max_iter)
-                    and new_node):  # if reaches goal
+            if ((not self.search_until_max_iter) and new_node):  # if reaches goal
                 last_index = self.search_best_goal_node()
                 if last_index is not None:
                     return self.generate_final_course(last_index)
@@ -108,19 +97,20 @@ class RRTStar(RRT):
 
     def choose_parent(self, new_node, near_inds):
         """
-        Computes the cheapest point to new_node contained in the list
-        near_inds and set such a node as the parent of new_node.
-            Arguments:
-            --------
-                new_node, Node
-                    randomly generated node with a path from its neared point
-                    There are not coalitions between this node and th tree.
-                near_inds: list
-                    Indices of indices of the nodes what are near to new_node
-
-            Returns.
-            ------
-                Node, a copy of new_node
+        在新产生的节点 $x_{new}$ 附近以定义的半径范围$r$内寻找所有的近邻节点 $X_{near}$，
+        作为替换 $x_{new}$ 原始父节点 $x_{near}$ 的备选
+	    我们需要依次计算起点到每个近邻节点 $X_{near}$ 的路径代价 加上近邻节点 $X_{near}$ 到 $x_{new}$ 的路径代价，
+        取路径代价最小的近邻节点$x_{min}$作为 $x_{new}$ 新的父节点
+        Arguments:
+        --------
+            new_node, Node
+                randomly generated node with a path from its neared point
+                There are not coalitions between this node and th tree.
+            near_inds: list
+                Indices of indices of the nodes what are near to new_node
+        Returns.
+        ------
+            Node, a copy of new_node
         """
         if not near_inds:
             return None
@@ -130,8 +120,7 @@ class RRTStar(RRT):
         for i in near_inds:
             near_node = self.node_list[i]
             t_node = self.steer(near_node, new_node)
-            if t_node and self.check_collision(
-                    t_node, self.obstacle_list, self.robot_radius):
+            if t_node and self.obstacle_free(t_node, self.obstacle_list, self.robot_radius):
                 costs.append(self.calc_new_cost(near_node, new_node))
             else:
                 costs.append(float("inf"))  # the cost of collision node
@@ -148,9 +137,7 @@ class RRTStar(RRT):
         return new_node
 
     def search_best_goal_node(self):
-        dist_to_goal_list = [
-            self.calc_dist_to_goal(n.x, n.y) for n in self.node_list
-        ]
+        dist_to_goal_list = [self.calc_dist_to_goal(n.x, n.y) for n in self.node_list]
         goal_inds = [
             dist_to_goal_list.index(i) for i in dist_to_goal_list
             if i <= self.expand_dis
@@ -159,8 +146,7 @@ class RRTStar(RRT):
         safe_goal_inds = []
         for goal_ind in goal_inds:
             t_node = self.steer(self.node_list[goal_ind], self.goal_node)
-            if self.check_collision(
-                    t_node, self.obstacle_list, self.robot_radius):
+            if self.obstacle_free(t_node, self.obstacle_list, self.robot_radius):
                 safe_goal_inds.append(goal_ind)
 
         if not safe_goal_inds:
@@ -223,7 +209,7 @@ class RRTStar(RRT):
                 continue
             edge_node.cost = self.calc_new_cost(new_node, near_node)
 
-            no_collision = self.check_collision(
+            no_collision = self.obstacle_free(
                 edge_node, self.obstacle_list, self.robot_radius)
             improved_cost = near_node.cost > edge_node.cost
 
@@ -249,8 +235,12 @@ class RRTStar(RRT):
 
 
 def main():
-    print("Start " + __file__)
+    print("Start " )
+    fig = plt.figure(1)
 
+    camera = Camera(fig) # 保存动图时使用
+    # camera = None # 不保存动图时，camara为None
+    show_animation = True
     # ====Search Path with RRT====
     obstacle_list = [
         (5, 5, 1),
@@ -269,9 +259,9 @@ def main():
         goal=[6, 10],
         rand_area=[-2, 15],
         obstacle_list=obstacle_list,
-        expand_dis=1,
+        expand_dis=3,
         robot_radius=0.8)
-    path = rrt_star.planning(animation=show_animation)
+    path = rrt_star.planning(animation=show_animation,camera=camera)
 
     if path is None:
         print("Cannot find path")
@@ -280,13 +270,16 @@ def main():
 
         # Draw final path
         if show_animation:
-            rrt_star.draw_graph()
+            rrt_star.draw_graph(camera=camera)
             plt.plot([x for (x, y) in path], [y for (x, y) in path], 'r--')
             plt.grid(True)
+            if camera!=None:
+                camera.snap()
+                animation = camera.animate()
+                animation.save('trajectory.gif')
     plt.show()
 
 
 if __name__ == '__main__':
-    print(os.path.dirname(os.path.abspath(__file__)))
 
     main()
