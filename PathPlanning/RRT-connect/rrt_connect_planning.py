@@ -327,8 +327,16 @@ def main(gx=6.0, gy=10.0):
     camera = None # 不保存动图时，camara为None
     show_animation = True
     # ====Search Path with RRT_Connect====
-    obstacleList = [(3, 6, 1), (3, 8, 2), (3, 10, 2), (7, 5, 1),
-            (9, 5, 2), (8, 10, 1), (7, 5, 2), (10, 5, 2)]  # [x, y, radius]
+    obstacleList = [
+        (5, 5, 1),
+        (3, 6, 2),
+        (3, 8, 2),
+        (3, 10, 2),
+        (7, 5, 2),
+        (9, 5, 2),
+        (8, 10, 1),
+        (6, 12, 1),
+    ]  # [x,y,size(radius)]
     # Set Initial parameters
     rrt = RRT_Connect(
         start=[0, 0],

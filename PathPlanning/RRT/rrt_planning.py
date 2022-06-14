@@ -300,8 +300,16 @@ def main(gx=6.0, gy=10.0):
     camera = None # 不保存动图时，camara为None
     show_animation = True
     # ====Search Path with RRT====
-    obstacleList = [(5, 5, 1), (3, 6, 2), (3, 8, 2), (3, 10, 2), (7, 5, 2),
-                    (9, 5, 2), (8, 10, 1)]  # [x, y, radius]
+    obstacleList = [
+        (5, 5, 1),
+        (3, 6, 2),
+        (3, 8, 2),
+        (3, 10, 2),
+        (7, 5, 2),
+        (9, 5, 2),
+        (8, 10, 1),
+        (6, 12, 1),
+    ]  # [x,y,size(radius)]
     # Set Initial parameters
     rrt = RRT(
         start=[0, 0],
@@ -328,6 +336,11 @@ def main(gx=6.0, gy=10.0):
                 camera.snap()
                 animation = camera.animate()
                 animation.save('trajectory.gif')
+            plt.figure(2)
+            plt.axis("equal")
+            plt.axis([-2, 15, -2, 15])
+            plt.grid(True)
+            plt.plot([x for (x, y) in path], [y for (x, y) in path], '-r')
             plt.show()
 
 
