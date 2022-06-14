@@ -1,23 +1,23 @@
-"""
-
-Probabilistic Road Map (PRM) Planner
-
-author: Atsushi Sakai (@Atsushi_twi)
-
-"""
-
 import math
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.spatial import KDTree
+from celluloid import Camera  # 保存动图时用，pip install celluloid
 
 # parameter
-N_SAMPLE = 500  # number of sample_points
-N_KNN = 10  # number of edge from one sampled point
+N_SAMPLE = 500  # 采样点数目，即随机点集V的大小
+N_KNN = 10  # 一个采样点的领域点个数
 MAX_EDGE_LEN = 30.0  # [m] Maximum edge length
 
 show_animation = True
 
+"""
+kd-tree用于快速查找nearest-neighbor
+
+query(self, x[, k, eps, p, distance_upper_bound]): 查询kd-tree附近的邻居
+
+
+"""
 
 class Node:
     """
@@ -27,7 +27,7 @@ class Node:
     def __init__(self, x, y, cost, parent_index):
         self.x = x
         self.y = y
-        self.cost = cost
+        self.cost = cost # 每条边权值
         self.parent_index = parent_index
 
     def __str__(self):
@@ -35,8 +35,7 @@ class Node:
             str(self.cost) + "," + str(self.parent_index)
 
 
-def prm_planning(start_x, start_y, goal_x, goal_y,
-                 obstacle_x_list, obstacle_y_list, robot_radius, *, rng=None):
+def prm_planning(start_x, start_y, goal_x, goal_y, obstacle_x_list, obstacle_y_list, robot_radius, *, camara=None,rng=None):
     """
     Run probabilistic road map planning
 
@@ -47,28 +46,31 @@ def prm_planning(start_x, start_y, goal_x, goal_y,
     :param obstacle_x_list: obstacle x positions
     :param obstacle_y_list: obstacle y positions
     :param robot_radius: robot radius
-    :param rng: (Optional) Random generator
+    :param rng: 随机数构造器
     :return:
     """
     obstacle_kd_tree = KDTree(np.vstack((obstacle_x_list, obstacle_y_list)).T)
-
+    # 采样点集生成
     sample_x, sample_y = sample_points(start_x, start_y, goal_x, goal_y,
-                                       robot_radius,
-                                       obstacle_x_list, obstacle_y_list,
-                                       obstacle_kd_tree, rng)
+                        robot_radius,
+                        obstacle_x_list, obstacle_y_list,
+                        obstacle_kd_tree, rng)
     if show_animation:
         plt.plot(sample_x, sample_y, ".b")
 
-    road_map = generate_road_map(sample_x, sample_y,
-                                 robot_radius, obstacle_kd_tree)
-
+    # 生成概率路图
+    road_map = generate_road_map(sample_x, sample_y, robot_radius, obstacle_kd_tree)
+    # 使用迪杰斯特拉规划路径
     rx, ry = dijkstra_planning(
-        start_x, start_y, goal_x, goal_y, road_map, sample_x, sample_y)
+        start_x, start_y, goal_x, goal_y, road_map, sample_x, sample_y,camara)
 
     return rx, ry
 
 
 def is_collision(sx, sy, gx, gy, rr, obstacle_kd_tree):
+    """判断是否发生碰撞,true碰撞，false不碰
+        rr: 机器人半径
+    """
     x = sx
     y = sy
     dx = gx - sx
@@ -83,7 +85,7 @@ def is_collision(sx, sy, gx, gy, rr, obstacle_kd_tree):
     n_step = round(d / D)
 
     for i in range(n_step):
-        dist, _ = obstacle_kd_tree.query([x, y])
+        dist, _ = obstacle_kd_tree.query([x, y])  # 查询kd-tree附近的邻居
         if dist <= rr:
             return True  # collision
         x += D * math.cos(yaw)
@@ -91,7 +93,7 @@ def is_collision(sx, sy, gx, gy, rr, obstacle_kd_tree):
 
     # goal point check
     dist, _ = obstacle_kd_tree.query([gx, gy])
-    if dist <= rr:
+    if dist <= rr: 
         return True  # collision
 
     return False  # OK
@@ -99,7 +101,7 @@ def is_collision(sx, sy, gx, gy, rr, obstacle_kd_tree):
 
 def generate_road_map(sample_x, sample_y, rr, obstacle_kd_tree):
     """
-    Road map generation
+    概率路图生成
 
     sample_x: [m] x positions of sampled points
     sample_y: [m] y positions of sampled points
@@ -112,14 +114,14 @@ def generate_road_map(sample_x, sample_y, rr, obstacle_kd_tree):
     sample_kd_tree = KDTree(np.vstack((sample_x, sample_y)).T)
 
     for (i, ix, iy) in zip(range(n_sample), sample_x, sample_y):
-
+        # 对V中的每个点q，选择k个邻域点
         dists, indexes = sample_kd_tree.query([ix, iy], k=n_sample)
         edge_id = []
 
         for ii in range(1, len(indexes)):
             nx = sample_x[indexes[ii]]
             ny = sample_y[indexes[ii]]
-
+            # 对每个领域点$q'$进行判断，如果$q$和$q'$尚未形成路径，则将其连接形成路径并进行碰撞检测，若无碰撞，则保留该路径。
             if not is_collision(ix, iy, nx, ny, rr, obstacle_kd_tree):
                 edge_id.append(indexes[ii])
 
@@ -133,7 +135,7 @@ def generate_road_map(sample_x, sample_y, rr, obstacle_kd_tree):
     return road_map
 
 
-def dijkstra_planning(sx, sy, gx, gy, road_map, sample_x, sample_y):
+def dijkstra_planning(sx, sy, gx, gy, road_map, sample_x, sample_y,camara):
     """
     s_x: start x position [m]
     s_y: start y position [m]
@@ -142,22 +144,24 @@ def dijkstra_planning(sx, sy, gx, gy, road_map, sample_x, sample_y):
     obstacle_x_list: x position list of Obstacles [m]
     obstacle_y_list: y position list of Obstacles [m]
     robot_radius: robot radius [m]
-    road_map: ??? [m]
-    sample_x: ??? [m]
-    sample_y: ??? [m]
+    road_map: 构建好的路图 [m]
+    sample_x: 采样点集x [m]
+    sample_y: 采样点集y [m]
 
     @return: Two lists of path coordinates ([x1, x2, ...], [y1, y2, ...]), empty list when no path was found
     """
 
     start_node = Node(sx, sy, 0.0, -1)
     goal_node = Node(gx, gy, 0.0, -1)
-
+    # 使用字典的方式构造开闭集合
+    # openList表由待考察的节点组成， closeList表由已经考察过的节点组成。
     open_set, closed_set = dict(), dict()
     open_set[len(road_map) - 2] = start_node
 
     path_found = True
-
+    # 步骤与A星算法一致
     while True:
+        # 如果open_set是空的
         if not open_set:
             print("Cannot find path")
             path_found = False
@@ -174,6 +178,8 @@ def dijkstra_planning(sx, sy, gx, gy, road_map, sample_x, sample_y):
                 lambda event: [exit(0) if event.key == 'escape' else None])
             plt.plot(current.x, current.y, "xg")
             plt.pause(0.001)
+            if camara !=None:
+                camara.snap()
 
         if c_id == (len(road_map) - 1):
             print("goal is found!")
@@ -220,17 +226,9 @@ def dijkstra_planning(sx, sy, gx, gy, road_map, sample_x, sample_y):
     return rx, ry
 
 
-def plot_road_map(road_map, sample_x, sample_y):  # pragma: no cover
-
-    for i, _ in enumerate(road_map):
-        for ii in range(len(road_map[i])):
-            ind = road_map[i][ii]
-
-            plt.plot([sample_x[i], sample_x[ind]],
-                     [sample_y[i], sample_y[ind]], "-k")
-
-
 def sample_points(sx, sy, gx, gy, rr, ox, oy, obstacle_kd_tree, rng):
+    """采样点集生成
+    """
     max_x = max(ox)
     max_y = max(oy)
     min_x = min(ox)
@@ -245,12 +243,14 @@ def sample_points(sx, sy, gx, gy, rr, ox, oy, obstacle_kd_tree, rng):
         tx = (rng.random() * (max_x - min_x)) + min_x
         ty = (rng.random() * (max_y - min_y)) + min_y
 
+        # 在障碍物中查询离[tx, ty]最近的点的距离
         dist, index = obstacle_kd_tree.query([tx, ty])
 
+        # 距离大于机器人半径，说明没有碰撞，将这个无碰撞的点加入V中，重复n次。
         if dist >= rr:
             sample_x.append(tx)
             sample_y.append(ty)
-
+    # 别忘了起点和目标点
     sample_x.append(sx)
     sample_y.append(sy)
     sample_x.append(gx)
@@ -259,9 +259,21 @@ def sample_points(sx, sy, gx, gy, rr, ox, oy, obstacle_kd_tree, rng):
     return sample_x, sample_y
 
 
-def main(rng=None):
-    print(__file__ + " start!!")
+def plot_road_map(road_map, sample_x, sample_y):  # pragma: no cover
 
+    for i, _ in enumerate(road_map):
+        for ii in range(len(road_map[i])):
+            ind = road_map[i][ii]
+
+            plt.plot([sample_x[i], sample_x[ind]],
+                     [sample_y[i], sample_y[ind]], "-k")
+
+def main(rng=None):
+    print( " start!!")
+    fig = plt.figure(1)
+
+    # camara = Camera(fig)  # 保存动图时使用
+    camara = None
     # start and goal position
     sx = 10.0  # [m]
     sy = 10.0  # [m]
@@ -297,14 +309,21 @@ def main(rng=None):
         plt.plot(gx, gy, "^c")
         plt.grid(True)
         plt.axis("equal")
+        if camara != None:
+            camara.snap()
 
-    rx, ry = prm_planning(sx, sy, gx, gy, ox, oy, robot_size, rng=rng)
+    rx, ry = prm_planning(sx, sy, gx, gy, ox, oy, robot_size,camara=camara, rng=rng)
 
     assert rx, 'Cannot found path'
 
     if show_animation:
         plt.plot(rx, ry, "-r")
         plt.pause(0.001)
+        if camara!=None:
+            camara.snap()
+            animation = camara.animate()
+            animation.save('trajectory.gif')
+        plt.savefig("result.png")
         plt.show()
 
 
