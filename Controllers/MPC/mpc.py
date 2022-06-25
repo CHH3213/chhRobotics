@@ -156,16 +156,17 @@ class MyReferencePath:
             robot_state[0], robot_state[1])
 
         xref = np.zeros((NX, T + 1))
-        dref = np.zeros((1, T + 1))
+        dref = np.zeros((NU, T))
         ncourse = len(self.refer_path)
 
         xref[0, 0] = self.refer_path[ind, 0]
         xref[1, 0] = self.refer_path[ind, 1]
         xref[2, 0] = self.refer_path[ind, 2]
 
+        # 参考控制量[v,delta]
         ref_delta = math.atan2(L*k, 1)
-        # dref[0, 0] = ref_delta
-        dref[0, 0] = 0.0   # steer operational point should be 0
+        dref[0, :] = robot_state[3]
+        dref[1, :] = ref_delta
 
         travel = 0.0
 
@@ -177,14 +178,11 @@ class MyReferencePath:
                 xref[0, i] = self.refer_path[ind + dind, 0]
                 xref[1, i] = self.refer_path[ind + dind, 1]
                 xref[2, i] = self.refer_path[ind + dind, 2]
-                # dref[0, i] = ref_delta
-                dref[0, i] = 0.0
+
             else:
                 xref[0, i] = self.refer_path[ncourse - 1, 0]
                 xref[1, i] = self.refer_path[ncourse - 1, 1]
                 xref[2, i] = self.refer_path[ncourse - 1, 2]
-                # dref[0, i] = ref_delta
-                dref[0, i] = 0.0
 
         return xref, ind, dref
 
@@ -214,6 +212,7 @@ def linear_mpc_control(xref, x0, delta_ref, ugv):
     x0: initial state
     delta_ref: reference steer angle
     ugv:车辆对象
+    returns: 最优的控制量和最优状态
     """
 
     x = cvxpy.Variable((NX, T + 1))
@@ -223,22 +222,23 @@ def linear_mpc_control(xref, x0, delta_ref, ugv):
     constraints = []  # 约束条件
 
     for t in range(T):
-        cost += cvxpy.quad_form(u[:, t], R)
+        cost += cvxpy.quad_form(u[:, t]-delta_ref[:, t], R)
 
         if t != 0:
-            cost += cvxpy.quad_form(xref[:, t] - x[:, t], Q)
+            cost += cvxpy.quad_form(x[:, t] - xref[:, t], Q)
 
         A, B, C = ugv.state_space(delta_ref[0, t], xref[2, t])
-        constraints += [x[:, t + 1] == A @ x[:, t] + B @ u[:, t]]
+        constraints += [x[:, t + 1]-xref[:, t+1] == A @
+                        (x[:, t]-xref[:, t]) + B @ (u[:, t]-delta_ref[:, t])]
 
         # if t < (T - 1):
         # cost += cvxpy.quad_form(u[:, t + 1] - u[:, t], Rd)
         # constraints += [cvxpy.abs(u[1, t + 1] - u[1, t]) <=
         #                 MAX_DSTEER * ugv.dt]
 
-    cost += cvxpy.quad_form(xref[:, T] - x[:, T], Qf)
+    cost += cvxpy.quad_form(x[:, T] - xref[:, T], Qf)
 
-    constraints += [x[:, 0] == x0]
+    constraints += [(x[:, 0]) == x0]
     constraints += [cvxpy.abs(u[0, :]) <= MAX_VEL]
     constraints += [cvxpy.abs(u[1, :]) <= MAX_STEER]
 
@@ -257,7 +257,6 @@ def linear_mpc_control(xref, x0, delta_ref, ugv):
         opt_v, opt_delta, opt_x, opt_y, opt_yaw = None, None, None, None, None,
 
     return opt_v, opt_delta, opt_x, opt_y, opt_yaw
-
 
 
 
