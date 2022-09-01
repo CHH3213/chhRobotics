@@ -137,8 +137,8 @@ class PID_inc:
         return self.value
 
     def _update(self):
-        self.err_last = self.err
         self.err_ll = self.err_last
+        self.err_last = self.err
         self.value = self.value + self.inc
         if self.value > self.upper:
             self.value = self.upper

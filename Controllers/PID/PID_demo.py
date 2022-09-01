@@ -29,9 +29,9 @@ class KinematicModel_3:
 
 
 ## 位置式
-PID = PID_posi_2(k=[2, 0.025, 20], target=0, upper=np.pi/6, lower=-np.pi/6)
+PID = PID_posi_2(k=[2, 0.01, 30], target=0, upper=np.pi/6, lower=-np.pi/6)
 ## 增量式
-# PID = PID_inc(k=[1, 1, 15], target=0, upper=np.pi/6, lower=-np.pi/6)
+# PID = PID_inc(k=[2.5, 0.175, 30], target=0, upper=np.pi/6, lower=-np.pi/6)
 
 def cal_target_index(robot_state,refer_path):
     """得到临近的路点
