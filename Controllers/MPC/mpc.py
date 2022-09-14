@@ -59,11 +59,13 @@ class KinematicModel_3:
     """将模型离散化后的状态空间表达
 
     Args:
-        delta (_type_): 参考输入
+        ref_delta (_type_): 参考的转角控制量
+        ref_yaw (_type_): 参考的偏航角
 
     Returns:
         _type_: _description_
     """
+
     A = np.matrix([
         [1.0, 0.0, -self.v*self.dt*math.sin(ref_yaw)],
         [0.0, 1.0, self.v*self.dt*math.cos(ref_yaw)],
@@ -72,8 +74,7 @@ class KinematicModel_3:
     B = np.matrix([
         [self.dt*math.cos(ref_yaw), 0],
         [self.dt*math.sin(ref_yaw), 0],
-        [self.dt*math.tan(ref_delta), self.v*self.dt /
-         (self.L*math.cos(ref_delta)*math.cos(ref_delta))]
+        [self.dt*math.tan(ref_yaw), self.v*self.dt /(self.L*math.cos(ref_delta)*math.cos(ref_delta))]
     ])
 
     C = np.eye(3)
@@ -227,14 +228,10 @@ def linear_mpc_control(xref, x0, delta_ref, ugv):
         if t != 0:
             cost += cvxpy.quad_form(x[:, t] - xref[:, t], Q)
 
-        A, B, C = ugv.state_space(delta_ref[0, t], xref[2, t])
+        A, B, C = ugv.state_space(delta_ref[1, t], xref[2, t])
         constraints += [x[:, t + 1]-xref[:, t+1] == A @
                         (x[:, t]-xref[:, t]) + B @ (u[:, t]-delta_ref[:, t])]
 
-        # if t < (T - 1):
-        # cost += cvxpy.quad_form(u[:, t + 1] - u[:, t], Rd)
-        # constraints += [cvxpy.abs(u[1, t + 1] - u[1, t]) <=
-        #                 MAX_DSTEER * ugv.dt]
 
     cost += cvxpy.quad_form(x[:, T] - xref[:, T], Qf)
 
