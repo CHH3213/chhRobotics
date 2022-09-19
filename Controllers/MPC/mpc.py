@@ -74,7 +74,7 @@ class KinematicModel_3:
     B = np.matrix([
         [self.dt*math.cos(ref_yaw), 0],
         [self.dt*math.sin(ref_yaw), 0],
-        [self.dt*math.tan(ref_yaw), self.v*self.dt /(self.L*math.cos(ref_delta)*math.cos(ref_delta))]
+        [self.dt*math.tan(ref_delta)/self.L, self.v*self.dt /(self.L*math.cos(ref_delta)*math.cos(ref_delta))]
     ])
 
     C = np.eye(3)

@@ -54,7 +54,7 @@ class KinematicModel_3:
     B = np.matrix([
         [self.dt*math.cos(ref_yaw), 0],
         [self.dt*math.sin(ref_yaw), 0],
-        [self.dt*math.tan(ref_delta), self.v*self.dt /
+        [self.dt*math.tan(ref_delta)/self.L, self.v*self.dt /
          (self.L*math.cos(ref_delta)*math.cos(ref_delta))]
     ])
     return A, B
