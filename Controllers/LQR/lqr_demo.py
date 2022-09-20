@@ -4,16 +4,16 @@ import matplotlib
 import matplotlib.pyplot as plt
 import math
 
-N = 100  # 迭代范围
-
-Q = np.eye(3)*5
-R = np.eye(2)*1.
-dt = 0.1  # 时间间隔，单位：s
-L = 2  # 车辆轴距，单位：m
-v = 2  # 初始速度
-x_0 = 0  # 初始x
-y_0 = -3  # 初始y
-psi_0 = 0  # 初始航向角
+N=100 # 迭代范围
+EPS = 1e-4 # 迭代精度
+Q = np.eye(3)*3
+R = np.eye(2)*2.
+dt=0.1 # 时间间隔，单位：s
+L=2 # 车辆轴距，单位：m
+v = 2 # 初始速度
+x_0=0 # 初始x
+y_0=-3 #初始y
+psi_0=0 # 初始航向角
 
 class KinematicModel_3:
   """假设控制量为转向角delta_f和加速度a
@@ -133,7 +133,7 @@ def normalize_angle(angle):
     return angle
 
 
-def cal_Ricatti(A, B, Q, R):
+def cal_Ricatti(A,B,Q,R):
     """解代数里卡提方程
 
     Args:
@@ -145,15 +145,16 @@ def cal_Ricatti(A, B, Q, R):
     Returns:
         _type_: _description_
     """
-    P = [None] * (N + 1)
     # 设置迭代初始值
-    Qf = Q
-    P[N] = Qf
-    # 循环迭代,for t=N,...,1
-    for t in range(N, 0, -1):
-        P[t-1] = Q+A.T@P[t]@A - \
-            A.T@P[t]@B@np.linalg.pinv(R+B.T@P[t]@B)@B.T@P[t]@A
-    return P
+    Qf=Q
+    P=Qf
+    # 循环迭代
+    for t in range(N):
+        P_=Q+A.T@P@A-A.T@P@B@np.linalg.pinv(R+B.T@P@B)@B.T@P@A
+        if(abs(P_-P).max()<EPS):
+            break
+        P=P_
+    return P_
 
 
 def lqr(robot_state, refer_path, s0, A, B, Q, R):
@@ -161,19 +162,19 @@ def lqr(robot_state, refer_path, s0, A, B, Q, R):
     LQR控制器
     """
     # x为位置和航向误差
-    x = robot_state[0:3]-refer_path[s0, 0:3]
+    x=robot_state[0:3]-refer_path[s0,0:3]
 
-    P = cal_Ricatti(A, B, Q, R)
 
-    K = [None] * (N)
-    u = [None] * (N)
-    """计算反馈系数K和优化的控制量U"""
-    for t in range(N):
-        K[t] = -np.linalg.pinv(R + B.T @ P[t+1] @ B) @ B.T @ P[t+1] @ A
-        u[t] = K[t] @ x
-    u_star = u[N-1]  # u_star = [[v-ref_v,delta-ref_delta]]
+    P = cal_Ricatti(A,B,Q,R)
+
+
+
+    K = -np.linalg.pinv(R + B.T @ P @ B) @ B.T @ P @ A
+    u = K @ x
+    u_star = u #u_star = [[v-ref_v,delta-ref_delta]] 
     # print(u_star)
-    return u_star[0, 1]
+    return u_star[0,1]
+
 
 
 # 使用随便生成的轨迹
