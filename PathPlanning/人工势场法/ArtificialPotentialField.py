@@ -81,7 +81,7 @@ while ((Pi[0] - Pg[0]) ** 2 + (Pi[1] - Pg[1]) ** 2) ** 0.5 > 0.5:
             F_rep_ob1 = F_rep_ob1_abs*unite_vec[j]  # 斥力向量
             # 障碍物的斥力2，方向由车辆指向目标点
             F_rep_ob2_abs = n/2 * Eta_rep_ob * (1 / dists[j] - 1 / d0) **2 *(dists[len(Pobs)])**(n-1) # 斥力大小
-            F_rep_ob2 = F_rep_ob2_abs * unite_vec[j]  # 斥力向量
+            F_rep_ob2 = F_rep_ob2_abs * unite_vec[len(Pobs)]  # 斥力向量
             # 改进后的障碍物合斥力计算
             F_rep_ob[j] = F_rep_ob1 + F_rep_ob2
     
