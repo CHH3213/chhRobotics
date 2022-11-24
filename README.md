@@ -1,7 +1,8 @@
 ## This is about self-driving!
 
-自动驾驶决策规划控制的理论知识参考CSDN博客：<https://blog.csdn.net/weixin_42301220?spm=1010.2135.3001.5343>
+自动驾驶决策规划控制的理论知识参考[CSDN博客](<https://blog.csdn.net/weixin_42301220/article/details/124832403>) 。
 
+> 推荐结合博客内容来看代码实现。
 
 
 ### 环境依赖
@@ -11,6 +12,7 @@
 - matplotlib
 - celluloid
 - numpy
+- scipy
 
 均可以通过`pip`安装所需要的库。
 
