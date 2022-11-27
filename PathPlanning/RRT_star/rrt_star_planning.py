@@ -261,7 +261,7 @@ def main():
         obstacle_list=obstacle_list,
         expand_dis=3,
         robot_radius=0.8)
-    path = rrt_star.planning(animation=show_animation,camera=camera)
+    path = rrt_star.planning(animation=show_animation,camera=None)
 
     if path is None:
         print("Cannot find path")
@@ -270,13 +270,13 @@ def main():
 
         # Draw final path
         if show_animation:
-            rrt_star.draw_graph(camera=camera)
+            rrt_star.draw_graph(camera=None)
             plt.plot([x for (x, y) in path], [y for (x, y) in path], 'r--')
             plt.grid(True)
-            if camera!=None:
-                camera.snap()
-                animation = camera.animate()
-                animation.save('trajectory.gif')
+            # if camera!=None:
+            #     camera.snap()
+            #     animation = camera.animate()
+            #     animation.save('trajectory.gif')
     plt.show()
 
 
