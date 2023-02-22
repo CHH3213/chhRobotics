@@ -151,8 +151,8 @@ class RRT_Connect:
             new_x = to_node.x
             new_y = to_node.y
         else:
-            new_x = from_node.x+math.cos(theta)
-            new_y = from_node.y+math.sin(theta)
+            new_x = from_node.x+math.cos(theta)*extend_length
+            new_y = from_node.y+math.sin(theta)*extend_length
         new_node_1 = self.Node(new_x,new_y)
         new_node_1.path_x = [from_node.x] # 边集
         new_node_1.path_y = [from_node.y]
