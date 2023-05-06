@@ -86,8 +86,10 @@ def U_piecewise_B_Spline(n = None,k = None):
         NodeVector[0,n + 1:n + k + 1] = 1 # 末尾n+1到n+k+1的数重复
         piecewise = n / (k-1)  # 设定内节点的值
         if piecewise > 1:
-            # for i in range(k-1): # 内节点重复k-1次
-            NodeVector[0,k:n+1] = 1 / piecewise
+            for i in range(1,int(piecewise)):
+                # for j in range(0,k-1):# 内节点重复度k-1
+                #     NodeVector[0, (k-1)*i+1+j] = i / piecewise  
+                NodeVector[0, (k-1)*i+1:(k-1)*i+k] = i / piecewise  # 内节点重复度k-1
     else:
         print('error!需要满足n是k-1的整数倍且k-1为正整数')
     
@@ -96,7 +98,7 @@ if __name__=='__main__':
     ## 数据定义
     k = 3  # k阶、k-1次B样条
 
-    flag = 3  # 1,2,3分别绘制均匀B样条曲线、准均匀B样条曲线,分段B样条
+    flag = 1  # 1,2,3分别绘制均匀B样条曲线、准均匀B样条曲线,分段B样条
 
     # 控制点
     P = np.array([
