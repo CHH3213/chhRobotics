@@ -23,10 +23,12 @@ class KinematicModel_3:
     self.psi = psi
     self.v = v
     self.L = L
+    self.delta_f = 0.0
     # 实现是离散的模型
     self.dt = dt
 
   def update_state(self, a, delta_f):
+    self.delta_f = delta_f
     self.x = self.x+self.v*math.cos(self.psi)*self.dt
     self.y = self.y+self.v*math.sin(self.psi)*self.dt
     self.psi = self.psi+self.v/self.L*math.tan(delta_f)*self.dt
@@ -34,6 +36,15 @@ class KinematicModel_3:
 
   def get_state(self):
     return self.x, self.y, self.psi, self.v
+
+  def get_front_state(self):
+      """The input to stanley control should be the position of the front wheels of the vehicle.
+      """
+      front_x = self.x + self.L * math.cos(self.psi)
+      front_y = self.y + self.L * math.sin(self.psi)
+      front_v = self.v / math.cos(self.delta_f)
+      return front_x, front_y, self.psi, front_v
+
 
 def cal_target_index(robot_state, refer_path):
     """得到临近的路点
@@ -74,7 +85,7 @@ def stanley_control(robot_state,refer_path, refer_path_psi):
     """stanley控制
 
     Args:
-        robot_state (_type_): 机器人位姿，包括x,y,yaw,v
+        robot_state (_type_): 机器人yaw以及前轮位置和速度, 包括x,y,yaw,v
         refer_path (_type_): 参考轨迹的位置
         refer_path_psi (_type_): 参考轨迹上点的切线方向的角度
         last_target_index (_type_): 上一个目标临近点
@@ -116,11 +127,6 @@ def stanley_control(robot_state,refer_path, refer_path_psi):
     delta = normalize_angle(theta_e+delta_e)
     return delta,current_target_index
 
-    
-
-
-
-
 
 def main():
     # set reference trajectory
@@ -135,31 +141,38 @@ def main():
 
     x_ = []
     y_ = []
+    front_x_list = []
+    front_y_list = []
     fig = plt.figure(1)
     # 保存动图用
     camera = Camera(fig)
     # plt.ylim([-3,3])
     for _ in range(500):
+        front_x, front_y, ugv_psi, front_v = ugv.get_front_state()
         robot_state = np.zeros(4)
-        robot_state[0] = ugv.x
-        robot_state[1] = ugv.y
-        robot_state[2]=ugv.psi
-        robot_state[3]=ugv.v
+        robot_state[0] = front_x
+        robot_state[1] = front_y
+        robot_state[2] = ugv_psi
+        robot_state[3] = front_v
 
-
+        # The input to stanley_control should be the pose and velocity of the front wheel 
         delta,ind = stanley_control(robot_state,refer_path,refer_path_psi)
 
         ugv.update_state(0, delta)  # 加速度设为0，恒速
 
         x_.append(ugv.x)
         y_.append(ugv.y)
+        front_x_list.append(front_x)
+        front_y_list.append(front_y)
 
         # 显示动图
         plt.cla()
-        plt.plot(refer_path[:, 0], refer_path[:, 1], '-.b', linewidth=1.0)
-        plt.plot(x_, y_, "-r", label="trajectory")
+        plt.plot(refer_path[:, 0], refer_path[:, 1], '-.b', linewidth=1.0, label="refer_path")
+        plt.plot(x_, y_, "-r", label="rear_trajectory")
+        plt.plot(front_x_list, front_y_list, "-g", label="front_trajectory")
         plt.plot(refer_path[ind,0], refer_path[ind,1], "go", label="target")
         # plt.axis("equal")
+        plt.legend()
         plt.grid(True)
         plt.pause(0.001)
     #     camera.snap()
@@ -168,8 +181,10 @@ def main():
     # animation = camera.animate()
     # animation.save('trajectory.gif')
     plt.figure(2)
-    plt.plot(refer_path[:, 0], refer_path[:, 1], '-.b', linewidth=1.0)
-    plt.plot(x_, y_, 'r')
+    plt.plot(refer_path[:, 0], refer_path[:, 1], '-.b', linewidth=1.0, label="refer_path")
+    plt.plot(x_, y_, "-r", label="rear_trajectory")
+    plt.plot(front_x_list, front_y_list, "-g", label="front_trajectory")
+    plt.legend()
     plt.show()
 
 
